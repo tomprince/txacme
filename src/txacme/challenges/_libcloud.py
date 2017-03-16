@@ -73,17 +73,17 @@ def _get_existing(driver, zone_name, server_name, validation):
         zones = [
             z for z
             in driver.list_zones()
-            if z.domain == zone_name]
+            if z.domain.rstrip(u'.') == zone_name]
         if len(zones) == 0:
             raise ZoneNotFound(zone_name=zone_name)
     zone = zones[0]
-    subdomain = _split_zone(server_name, zone.domain)
+    subdomain = _split_zone(server_name, zone.domain.rstrip(u'.'))
     existing = [
         record for record
         in zone.list_records()
         if record.name == subdomain and
         record.type == 'TXT' and
-        record.data == validation]
+        record.data == '"{}"'.format(validation)]
     return zone, existing, subdomain
 
 
@@ -146,7 +146,7 @@ class LibcloudDNSResponder(object):
         Run a function in our private thread pool.
         """
         return _defer_to_worker(
-            self._reactor.callFromThread, self.thread_pool, f)
+            self._reactor.callFromThread, self._thread_pool, f)
 
     def start_responding(self, server_name, challenge, response):
         """
@@ -160,7 +160,7 @@ class LibcloudDNSResponder(object):
             zone, existing, subdomain = _get_existing(
                 _driver, self.zone_name, full_name, validation)
             if len(existing) == 0:
-                zone.create_record(name=subdomain, type='TXT', data=validation)
+                zone.create_record(name=subdomain, type='TXT', data='"{}"'.format(validation))
                 time.sleep(self.settle_delay)
         return self._defer(_go)
 
